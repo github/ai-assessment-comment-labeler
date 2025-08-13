@@ -1,0 +1,61 @@
+name: 'AI Assessment Comment Labeler'
+description: Generate an AI comment based on a prompt file and labels.
+
+branding:
+  icon: 'message-square'
+  color: orange
+
+inputs:
+  token:
+    description: The token to use
+    required: true
+  ai_review_label:
+    description: The label applied to the issue to trigger AI review
+    required: true
+  issue_number:
+    description: The issue number to comment on
+    required: true
+  issue_body:
+    description: The body of the issue to comment on
+    required: true
+  prompts_directory:
+    description: The path to the prompts directory where the .prompt.yml files are located
+    required: true
+  labels_to_prompts_mapping:
+    description: "A mapping of labels to prompt files, separated by '|'. Format: 'label1,prompt1.prompt.yml|label2,prompt2.prompt.yml'"
+    required: true
+  model:
+    description: The model to use for AI generation. Will be inferred from the .prompt.yml file if not provided. Action will fail if not found in the file and not provided.
+    required: false
+  endpoint:
+    description: 'The endpoint to use. Defaults to the OpenAI API endpoint "https://models.github.ai/inference"'
+    required: false
+    default: 'https://models.github.ai/inference'
+  max_tokens:
+    description: 'The maximum number of tokens to generate. Will be inferred from the .prompt.yml file if not provided. Defaults to 200 if not found in the file.'
+    required: false
+  repo_name:
+    description: The name of the repository. Will be inferred from the GitHub context if not provided.
+    required: false
+  owner:
+    description: The owner of the repository. Will be inferred from the GitHub context if not provided.
+    required: false
+  assessment_regex_pattern:
+    description: 'Regex pattern for capturing the assessment line in the AI response used for creating the label to add to the issue. Default: "^###.*[aA]ssessment:\s*(.+)$"'
+    required: false
+    default: '^###.*[aA]ssessment:\s*(.+)$'
+  assessment_regex_flags:
+    description: 'Regex flags for the assessment regex pattern. e.g.: "i" for case-insensitive matching.'
+    required: false
+    default: ''
+  no_comment_regex_pattern:
+    description: 'Regex pattern for capturing the no comment directive in the AI response. e.g.: "<!--.*no.*comment.*-->"'
+    required: false
+    default: ''
+  no_comment_regex_flags:
+    description: 'Regex flags for the no comment regex pattern. e.g.: "i" for case-insensitive matching.'
+    required: false
+    default: ''
+runs:
+  using: node20
+  main: dist/index.js

@@ -1,0 +1,44 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-javascript:
+    name: JavaScript Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        id: setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+
+      - name: bun setup
+        id: setup-bun
+        uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.0
+
+      - name: Install dependencies for the action
+        id: install-deps
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        id: bun-lint
+        run: bun run lint
+
+      - name: Test
+        id: bun-ci-test
+        run: bun test
