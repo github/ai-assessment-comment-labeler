@@ -134,7 +134,7 @@ If the overall assessment is fully ready, append: <!-- no-comment -->
 Then configure:
 ```
 no_comment_regex_pattern: '<!--.*no.*comment.*-->'
-no_comment_regex_flags: 'gmi'
+no_comment_regex_flags: 'i'
 ```
 When the pattern is found, the comment step is skipped; label + summary still generated.
 
