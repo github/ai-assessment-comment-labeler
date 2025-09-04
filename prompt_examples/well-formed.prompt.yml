@@ -35,7 +35,7 @@ messages:
       
       3. **Feedback/Actionable Recommendations**:
          - If well-formed:
-           - [Briefly state why it’s well-formed add "<!-- NO-COMMENT -->" at the end of the response.]
+           - [Briefly state why it’s well-formed, add "<!-- NO-COMMENT -->" at the end of the response.]
          - If not well-formed:
            - [List key pieces of missing information or improvements needed.]
       
