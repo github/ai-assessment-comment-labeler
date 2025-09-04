@@ -1,0 +1,42 @@
+name: AI Issue Assessment
+
+on:
+  issues:
+    types:
+      - labeled
+
+jobs:
+  ai-issue-assessment:
+    if: github.event.label.name == 'request ai review'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      models: read
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+
+      - name: Run AI assessment for issue labeled
+        id: ai-assessment-issue-labeled
+        uses: github/ai-assessment-comment-labeler@747e4e5735eaa4dbdbe47d9e9f7697c85f8201f9 # v1.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ github.event.issue.number }}
+          issue_body: ${{ github.event.issue.body }}
+          repo_name: ${{ github.repository.name }}
+          owner: ${{ github.repository_owner }}
+          ai_review_label: 'request ai review'
+          prompts_directory: '.github/prompts'
+          assessment_regex_pattern: '^###.*[aA]ssessment:\s*(.+)$'
+          no_comment_regex_pattern: '<!--.*NO.*COM*ENT.*-->'
+          no_comment_regex_flags: 'i'
+          labels_to_prompts_mapping: |
+            prompt:bug,bug-review.prompt.yml|
+            prompt:well-formed,well-formed.prompt.yml|
+            prompt:ai-slop,ai-slop.prompt.yml|
+            prompt:spam-detection,spam-detection.prompt.yml

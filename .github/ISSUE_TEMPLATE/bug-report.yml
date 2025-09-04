@@ -1,0 +1,39 @@
+name: Bug Report
+description: A guide to help you create a bug report with clear and measurable completion criteria.
+labels: ["prompt:bug", "prompt:ai-slop", "prompt:spam-detection", "request ai review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A standardized template to guide engineers in creating bug reports with clear and measurable completion criteria.
+        This template is intended to help you track bugs that need to be fixed.
+  - type: textarea
+    id: description
+    attributes:
+      label: "🚩 Description"
+      description: A concise explanation of the bug in a few words, including the context in which it occurs.
+      placeholder: ex. AI review action workflow is failing to complete successfully...
+    validations:
+      required: true
+  - type: textarea
+    id: stepsToReproduce
+    attributes:
+      label: "🔍 Steps to Reproduce"
+      description: A step-by-step guide to reproduce the bug, including any relevant details.
+      placeholder: ex. 1. Go to the issues page for owner/team 2. Create a new intake issue...
+    validations:
+      required: true
+  - type: textarea
+    id: expectedBehavior
+    attributes:
+      label: "✅ Expected Behavior"
+      description: A clear explanation of what was supposed to happen and what actually occurred, highlighting the discrepancy.
+      placeholder: ex. The AI review action workflow should complete successfully and leave a comment on the issue. Currently no comment is added to the issue...
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "🖼️ Screenshots"
+      description: Any relevant screenshots or images that help illustrate the bug.
+      placeholder: ex. ![screenshot](https://example.com/screenshot.png)

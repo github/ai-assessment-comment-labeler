@@ -1,0 +1,44 @@
+name: Feature Request Guide for Issues
+description: A guide to help you define the Definition of Done for a feature request issue.
+labels: ["prompt:well-formed", "prompt:ai-slop", "prompt:spam-detection", "request ai review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A standardized template for the Definition of Done (DoD) to guide engineers in creating issues with clear and measurable completion criteria.
+        This template is typically used for larger batch work type of issues.
+  - type: textarea
+    id: summary
+    attributes:
+      label: "⚒️ Summary"
+      description: "TL;DR summary of the request."
+      placeholder: ex. This issue outlines a request to enhance the user experience by addressing current tooling limitations...
+    validations:
+      required: true
+  - type: textarea
+    id: problemStatement
+    attributes:
+      label: "🚩 Problem Statement"
+      description: "What is the specific issue or challenge that needs to be addressed?"
+      placeholder: ex. Currently, the biggest hurdle blocking progress in the is the lack of...
+    validations:
+      required: true
+  - type: textarea
+    id: proposedSolution
+    attributes:
+      label: "💡 Proposed Solution"
+      description: How will this issue be resolved? What actions are required to address the problem?
+      placeholder: ex. We propose to update tooling solutions that will support the desired user experience...
+    validations:
+      required: true
+  - type: textarea
+    id: definitionOfDone
+    attributes:
+      label: "✅ Definition of Done"
+      description: "Clear and measurable success metric or deliverable"
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
