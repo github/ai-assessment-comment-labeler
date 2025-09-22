@@ -31235,6 +31235,8 @@ var main = async () => {
   const endpoint = import_core2.getInput("endpoint");
   const modelName = import_core2.getInput("model");
   const maxTokens = import_core2.getInput("max_tokens") ? parseInt(import_core2.getInput("max_tokens"), 10) : undefined;
+  const suppressLabelsInput = import_core2.getInput("suppress_labels") == "true";
+  const suppressCommentsInput = import_core2.getInput("suppress_comments") == "true";
   let issueLabels = import_github.context?.payload?.issue?.labels ?? [];
   if (!issueLabels || issueLabels.length === 0) {
     const labels = await getIssueLabels({
@@ -31272,6 +31274,7 @@ var main = async () => {
     return;
   }
   const labelsToAdd = [];
+  const outPutAssessments = [];
   for (const promptFile of promptFiles) {
     console.log(`Using prompt file: ${promptFile}`);
     const promptOptions = getPromptOptions(promptFile, promptsDirectory);
@@ -31284,7 +31287,7 @@ var main = async () => {
       modelName: modelName || promptOptions.model
     });
     if (aiResponse) {
-      if (noCommentRegex && noCommentRegex.test(aiResponse)) {
+      if (suppressCommentsInput || noCommentRegex && noCommentRegex.test(aiResponse)) {
         console.log("No comment creation as per AI response directive.");
       } else {
         const commentCreated = await createIssueComment({
@@ -31305,11 +31308,21 @@ var main = async () => {
         aiResponse,
         assessmentLabel
       });
+      outPutAssessments.push({
+        prompt: promptFile,
+        assessmentLabel,
+        response: aiResponse
+      });
     } else {
       console.log("No response received from AI.");
       const fileName = getBaseFilename(promptFile);
       labelsToAdd.push(`ai:${fileName}:unable-to-process`);
     }
+  }
+  import_core2.setOutput("ai_assessments", outPutAssessments);
+  if (suppressLabelsInput) {
+    console.log("Label suppression is enabled. No labels will be added.");
+    return;
   }
   if (labelsToAdd.length > 0) {
     console.log(`Adding labels: ${labelsToAdd.join(", ")}`);
