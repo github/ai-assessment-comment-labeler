@@ -179,7 +179,7 @@ const main = async () => {
     }
   }
 
-  setOutput("ai_assessments", outPutAssessments);
+  setOutput("ai_assessments", JSON.stringify(outPutAssessments));
 
   if (suppressLabelsInput) {
     console.log("Label suppression is enabled. No labels will be added.");
