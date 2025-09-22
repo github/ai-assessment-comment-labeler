@@ -31319,7 +31319,7 @@ var main = async () => {
       labelsToAdd.push(`ai:${fileName}:unable-to-process`);
     }
   }
-  import_core2.setOutput("ai_assessments", outPutAssessments);
+  import_core2.setOutput("ai_assessments", JSON.stringify(outPutAssessments));
   if (suppressLabelsInput) {
     console.log("Label suppression is enabled. No labels will be added.");
     return;
