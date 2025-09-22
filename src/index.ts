@@ -169,7 +169,7 @@ const main = async () => {
       });
       outPutAssessments.push({
         prompt: promptFile,
-        assessmentLabel: assessmentLabel,
+        assessmentLabel,
         response: aiResponse,
       });
     } else {
