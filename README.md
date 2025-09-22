@@ -238,12 +238,20 @@ The action always sets a structured output named `ai_assessments` containing an 
 ```
 Use this for downstream steps regardless of whether you suppressed labels or comments. Example consumption in a workflow step:
 ```yaml
-- name: Parse AI assessments
-  run: |
-    assessments='${{ steps.ai-assessment.outputs.ai_assessments }}'
-    echo "Raw: $assessments"
-    node -e "const a=JSON.parse(process.env.ASSESS);console.log(a.map(x=>x.assessmentLabel).join('\n'))" \
-      ASSESS="$assessments"
+- name: Parse Results
+  uses: actions/github-script@v7
+  env:
+    ASSESSMENT_OUTPUT: ${{ steps.ai-assessment.outputs.ai_assessments }} 
+  with:
+    script: |
+      const assessments = JSON.parse(process.env.ASSESSMENT_OUTPUT);
+      for (const assessment of assessments) {
+        console.log(`Prompt File: ${assessment.prompt}`);
+        console.log(`Label: ${assessment.assessmentLabel}`);
+        console.log(`AI Response: ${assessment.response}`);
+        core.summary.addRaw(`***Prompt File*:** ${assessment.prompt}\n**Label:** ${assessment.assessmentLabel}\n**AI Response:** ${assessment.response}\n\n`);
+      }
+      core.summary.write();
 ```
 You can also feed this JSON to later automation (e.g. create a summary table, open follow-up issues, trigger notifications).
 
