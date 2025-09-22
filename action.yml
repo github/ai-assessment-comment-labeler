@@ -56,6 +56,17 @@ inputs:
     description: 'Regex flags for the no comment regex pattern. e.g.: "i" for case-insensitive matching.'
     required: false
     default: ''
+  suppress_labels:
+    description: 'Do not add any labels to the issue. Useful if you just want to get the AI assessments and labels as outputs.'
+    required: false
+    default: 'false'
+  suppress_comments:
+    description: 'Do not add any comments to the issue. Useful if you just want to get the AI assessments and labels as outputs.'
+    required: false
+    default: 'false'
+outputs:
+  ai_assessments:
+    description: 'JSON array of objects representing all assessments made by the AI e.g. "[{"prompt": "security.prompt.yml", "assessmentLabel": "ai:security:high risk", "response": "### Assessment: High Risk\nThe code contains..."}]"'
 runs:
   using: node20
   main: dist/index.js

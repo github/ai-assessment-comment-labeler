@@ -1,5 +1,5 @@
 import { context, getOctokit } from "@actions/github";
-import { getInput } from "@actions/core";
+import { getInput, setOutput } from "@actions/core";
 import { aiInference } from "./ai";
 import {
   getPromptFilesFromLabels,
@@ -68,6 +68,10 @@ const main = async () => {
     ? parseInt(getInput("max_tokens"), 10)
     : undefined;
 
+  // Optional suppressing inputs
+  const suppressLabelsInput = getInput("suppress_labels") == "true";
+  const suppressCommentsInput = getInput("suppress_comments") == "true";
+
   // Get Labels from the issue
   let issueLabels: Label[] = context?.payload?.issue?.labels ?? [];
   if (!issueLabels || issueLabels.length === 0) {
@@ -118,6 +122,7 @@ const main = async () => {
   }
 
   const labelsToAdd: string[] = [];
+  const outPutAssessments = [];
   for (const promptFile of promptFiles) {
     console.log(`Using prompt file: ${promptFile}`);
     const promptOptions = getPromptOptions(promptFile, promptsDirectory);
@@ -131,7 +136,10 @@ const main = async () => {
       modelName: modelName || promptOptions.model,
     });
     if (aiResponse) {
-      if (noCommentRegex && noCommentRegex.test(aiResponse)) {
+      if (
+        suppressCommentsInput ||
+        (noCommentRegex && noCommentRegex.test(aiResponse))
+      ) {
         console.log("No comment creation as per AI response directive.");
       } else {
         const commentCreated = await createIssueComment({
@@ -159,11 +167,23 @@ const main = async () => {
         aiResponse,
         assessmentLabel,
       });
+      outPutAssessments.push({
+        prompt: promptFile,
+        assessmentLabel,
+        response: aiResponse,
+      });
     } else {
       console.log("No response received from AI.");
       const fileName = getBaseFilename(promptFile);
       labelsToAdd.push(`ai:${fileName}:unable-to-process`);
     }
+  }
+
+  setOutput("ai_assessments", JSON.stringify(outPutAssessments));
+
+  if (suppressLabelsInput) {
+    console.log("Label suppression is enabled. No labels will be added.");
+    return;
   }
 
   if (labelsToAdd.length > 0) {

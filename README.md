@@ -11,6 +11,7 @@
 - [Label → Prompt Mapping](#label--prompt-mapping)
 - [Regex Customization](#regex-customization)
 - [Suppressing the Comment](#suppressing-the-comment)
+ - [Suppressing Labels & Comments](#suppressing-labels--comments)
 - [Example Workflow Setup](#example-workflow-setup)
 - [Outputs / Labels Added](#outputs--labels-added)
 - [Required Permissions](#required-permissions)
@@ -97,6 +98,8 @@ Various inputs are defined in [`action.yml`](action.yml):
 | `assessment_regex_flags` | Flags for assessment regex | false | |
 | `no_comment_regex_pattern` | Pattern to detect comment suppression | false | |
 | `no_comment_regex_flags` | Flags for suppress pattern | false | |
+| `suppress_labels` | If `true`, do not add derived `ai:` labels (still sets output) | false | `false` |
+| `suppress_comments` | If `true`, never post AI response comments | false | `false` |
 
 ## Label → Prompt Mapping
 Provide a single string where pairs are separated by `|` and each pair is `label,prompt-file-name`. Example:
@@ -126,17 +129,40 @@ You could set:
 assessment_regex_pattern: '^## Result:\s*(.+)$'
 ```
 
-## Suppressing the Comment
+## Suppressing Labels & Comments
+You have three mechanisms to control side‑effects (labels, comments):
+
+1. Runtime flags:
+  - `suppress_comments: true` → Never create an issue comment with the AI response.
+  - `suppress_labels: true` → Never add the derived `ai:<prompt-stem>:<assessment>` labels.
+2. Regex directive suppression:
+  - Provide `no_comment_regex_pattern` (& optional flags) to let the AI itself decide when to skip commenting by emitting a marker inside the response (e.g. an HTML comment token).
+3. Leaving both off (default) → Always attempts to comment (unless regex matches) and always adds labels.
+
+### Behavior Matrix
+| Setting / Condition | Comment Posted | Labels Added | Output `ai_assessments` |
+| ------------------- | -------------- | ------------ | ----------------------- |
+| defaults (no suppress flags, no regex match) | Yes | Yes | Yes |
+| `suppress_comments: true` | No | Yes | Yes |
+| `suppress_labels: true` | Yes (unless regex suppresses) | No | Yes |
+| both suppress flags true | No | No | Yes |
+| regex match only | No | Yes | Yes |
+
+Notes:
+- The JSON output (`ai_assessments`) is always produced regardless of suppression so you can post‑process in later steps.
+- If you rely on regex suppression ensure your system prompt instructs the model precisely when to emit the marker.
+
+### Example Regex Based Comment Suppression
 Add an instruction in the system prompt to emit a marker when you only want labeling. Example system instruction snippet:
 ```
 If the overall assessment is fully ready, append: <!-- no-comment -->
 ```
-Then configure:
+Then configure in the workflow inputs:
 ```
 no_comment_regex_pattern: '<!--.*no.*comment.*-->'
 no_comment_regex_flags: 'i'
 ```
-When the pattern is found, the comment step is skipped; label + summary still generated.
+When the pattern is found (and `suppress_comments` is not already true), the comment step is skipped; labels (unless `suppress_labels` true) and summary still generated.
 
 ## Example Workflow Setup
 Below is an example workflow file. It triggers whenever a label is added, checks for the trigger label, processes, then removes it.
@@ -182,6 +208,7 @@ with:
 ```
 
 ## Outputs / Labels Added
+### Labels
 For each prompt file used (e.g. `bug-review.prompt.yml`), the assessment line text (after `Assessment:`) is:
 1. Lowercased
 2. Prefixed with `ai:<prompt-stem>:` where `<prompt-stem>` is the file name without extension and trailing `-prompt` parts preserved.
@@ -191,7 +218,42 @@ Examples:
 - `### AI Assessment: Missing Details` → `ai:bug-review:missing details`
 - No header found → `ai:bug-review:unsure`
 
-These labels let you filter, search, or automate additional workflows.
+These labels let you filter, search, or automate additional workflows. Labels are skipped entirely when `suppress_labels: true`.
+
+### Output: `ai_assessments`
+The action always sets a structured output named `ai_assessments` containing an array of objects (one per processed prompt) with:
+```
+[
+  {
+    "prompt": "bug-review.prompt.yml",
+    "assessmentLabel": "ai:bug-review:ready for review",
+    "response": "### AI Assessment: Ready for Review\n...full model response..."
+  },
+  {
+    "prompt": "perf-triage.prompt.yml",
+    "assessmentLabel": "ai:perf-triage:potential regression",
+    "response": "### AI Assessment: Potential Regression\n..."
+  }
+]
+```
+Use this for downstream steps regardless of whether you suppressed labels or comments. Example consumption in a workflow step:
+```yaml
+- name: Parse Results
+  uses: actions/github-script@v7
+  env:
+    ASSESSMENT_OUTPUT: ${{ steps.ai-assessment.outputs.ai_assessments }} 
+  with:
+    script: |
+      const assessments = JSON.parse(process.env.ASSESSMENT_OUTPUT);
+      for (const assessment of assessments) {
+        console.log(`Prompt File: ${assessment.prompt}`);
+        console.log(`Label: ${assessment.assessmentLabel}`);
+        console.log(`AI Response: ${assessment.response}`);
+        core.summary.addRaw(`***Prompt File*:** ${assessment.prompt}\n**Label:** ${assessment.assessmentLabel}\n**AI Response:** ${assessment.response}\n\n`);
+      }
+      core.summary.write();
+```
+You can also feed this JSON to later automation (e.g. create a summary table, open follow-up issues, trigger notifications).
 
 ## Required Permissions
 Recommended minimal permissions block:
