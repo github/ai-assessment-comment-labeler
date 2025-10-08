@@ -94,7 +94,7 @@ describe("getAILabelAssessmentValue", () => {
 });
 
 describe("getPromptFilesFromLabels", () => {
-  it("should return the request-intake.prompt.yml file for the suport request label", () => {
+  it("should return the request-intake.prompt.yml file for the support request label", () => {
     const issueLabels = [
       { name: "request ai review" },
       { name: "support request" },
