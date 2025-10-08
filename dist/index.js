@@ -31270,7 +31270,7 @@ var main = async () => {
     labelsToPromptsMapping
   });
   if (promptFiles.length === 0) {
-    console.log("No prompt files found.");
+    console.log("No matching prompt files found. No issue labels matched the configured label-to-prompt mapping. " + "To run an AI assessment, add a label that corresponds to a prompt file configured in your workflow.");
     return;
   }
   const labelsToAdd = [];

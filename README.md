@@ -275,7 +275,7 @@ permissions:
 | Symptom | Likely Cause | Fix |
 | --- | --- | --- |
 | Action exits early: "Required inputs are not set" | Missing mandatory input | Ensure all required `with:` fields are present |
-| "No prompt files found. No issue labels matched..." | Issue doesn't have a label that maps to a prompt | Add a label that corresponds to one in your `labels_to_prompts_mapping` (e.g., `bug`, `support request`) |
+| "No matching prompt files found." | Issue doesn't have a label that maps to a prompt | Add a label that corresponds to one in your `labels_to_prompts_mapping` (e.g., `bug`, `support request`), and ensure your prompts folder path is configured relative to repo root |
 | No labels added | Assessment regex failed | Adjust `assessment_regex_pattern` / flags |
 | Comment missing | Suppression regex matched | Remove or modify `no_comment_regex_pattern` |
 | Fallback label `unsure` | No header matched regex | Update system prompt to ensure header form |
