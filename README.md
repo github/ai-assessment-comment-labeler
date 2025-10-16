@@ -3,28 +3,35 @@
 > GitHub Action to automatically assess issues with an AI model, post (or optionally suppress) a structured review comment, and apply standardized AI derived labels based on configurable prompt files.
 
 ## Table of Contents
-- [Overview](#overview)
-- [How It Works](#how-it-works)
-- [Features](#features)
-- [Prompt File Schema](#prompt-file-schema)
-- [Inputs](#inputs)
-- [Label → Prompt Mapping](#label--prompt-mapping)
-- [Regex Customization](#regex-customization)
-- [Suppressing the Comment](#suppressing-the-comment)
- - [Suppressing Labels & Comments](#suppressing-labels--comments)
-- [Example Workflow Setup](#example-workflow-setup)
-- [Outputs / Labels Added](#outputs--labels-added)
-- [Required Permissions](#required-permissions)
-- [Troubleshooting](#troubleshooting)
-- [Development](#development)
-- [Contributing](#contributing)
-- [Security / Reporting Issues](#security--reporting-issues)
-- [FAQ](#faq)
-- [License](#license)
+- [AI Issue Assessment Commenter](#ai-issue-assessment-commenter)
+  - [Table of Contents](#table-of-contents)
+  - [Overview](#overview)
+  - [How It Works](#how-it-works)
+  - [Features](#features)
+  - [Prompt File Schema](#prompt-file-schema)
+  - [Inputs](#inputs)
+  - [Label → Prompt Mapping](#label--prompt-mapping)
+  - [Regex Customization](#regex-customization)
+  - [Suppressing Labels \& Comments](#suppressing-labels--comments)
+    - [Behavior Matrix](#behavior-matrix)
+    - [Example Regex Based Comment Suppression](#example-regex-based-comment-suppression)
+  - [Example Workflow Setup](#example-workflow-setup)
+  - [Outputs / Labels Added](#outputs--labels-added)
+    - [Labels](#labels)
+    - [Output: `ai_assessments`](#output-ai_assessments)
+  - [Required Permissions](#required-permissions)
+  - [Troubleshooting](#troubleshooting)
+  - [Development](#development)
+    - [Testing](#testing)
+    - [Releasing](#releasing)
+  - [Contributing](#contributing)
+  - [Security / Reporting Issues](#security--reporting-issues)
+  - [FAQ](#faq)
+  - [License](#license)
 
 ## Overview
 This action evaluates newly labeled GitHub Issues using an AI model available through **GitHub Models** (or a compatible endpoint you provide) and:
-1. Selects one or more prompt configuration files based on existing issue labels.
+1. Selects one or more prompt configuration files based on existing labels applied to the issue.
 2. Runs inference with the chosen model & system prompt.
 3. Extracts an "assessment" value from the AI response (via a configurable regex) and converts it into a standardized label of the form:
    `ai:<prompt-stem>:<assessment>` (lowercased, spaces preserved unless you modify regex or post processing).
@@ -34,7 +41,7 @@ This action evaluates newly labeled GitHub Issues using an AI model available th
 ## How It Works
 High level flow:
 1. Issue receives a trigger label (e.g. `request ai review`).
-2. Action runs and gathers all issue labels.
+2. Action runs and gathers all labels applied to the issue.
 3. Each label is checked against your `labels_to_prompts_mapping` list.
 4. For each matched prompt file:
    - System prompt + model + max tokens are resolved (overrides from workflow inputs if provided).
@@ -87,7 +94,7 @@ Various inputs are defined in [`action.yml`](action.yml):
 | `ai_review_label` | Label that triggers AI processing | true | |
 | `issue_number` | Issue number | true | |
 | `issue_body` | Issue body to feed into AI | true | |
-| `prompts_directory` | Directory containing `.prompt.yml` files | true | |
+| `prompts_directory` | Directory containing `.prompt.yml` files, relative to the root of the project | true | |
 | `labels_to_prompts_mapping` | Mapping string `label,prompt.yml\|label2,prompt2.yml` | true | |
 | `model` | Override model (falls back to prompt file) | false | |
 | `endpoint` | Inference endpoint | false | `https://models.github.ai/inference` |
@@ -268,6 +275,7 @@ permissions:
 | Symptom | Likely Cause | Fix |
 | --- | --- | --- |
 | Action exits early: "Required inputs are not set" | Missing mandatory input | Ensure all required `with:` fields are present |
+| "No matching prompt files found." | Issue doesn't have a label that maps to a prompt | Add a label that corresponds to one in your `labels_to_prompts_mapping` (e.g., `bug`, `support request`), and ensure your prompts folder path is configured relative to repo root |
 | No labels added | Assessment regex failed | Adjust `assessment_regex_pattern` / flags |
 | Comment missing | Suppression regex matched | Remove or modify `no_comment_regex_pattern` |
 | Fallback label `unsure` | No header matched regex | Update system prompt to ensure header form |
