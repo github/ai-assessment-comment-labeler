@@ -76,9 +76,7 @@ describe("aiInference error handling", () => {
   });
 
   it("should call core.setFailed when an exception is thrown", async () => {
-    const postMock = mock(() =>
-      Promise.reject(new Error("Network Error")),
-    );
+    const postMock = mock(() => Promise.reject(new Error("Network Error")));
 
     const clientMock = {
       path: mock(() => ({

@@ -33,7 +33,10 @@ describe("getPromptOptions", () => {
   });
   it("should return the default maxTokens when not provided in the prompt file", async () => {
     expect(
-      await getPromptOptions("test-default.yml", "./src/__tests__/test_prompts"),
+      await getPromptOptions(
+        "test-default.yml",
+        "./src/__tests__/test_prompts",
+      ),
     ).toEqual({
       systemMsg: "System prompt",
       model: "openai/gpt-4o-mini",
@@ -102,8 +105,7 @@ describe("getAILabelAssessmentValue", () => {
   });
 
   it("should return the FIRST match when multiple matches are present", () => {
-    const aiResponse =
-      "### Assessment: first\n### Assessment: second";
+    const aiResponse = "### Assessment: first\n### Assessment: second";
     // Currently this will FAIL because it returns 'ai:test:second'
     // I will expect 'ai:test:first' for the final state
     expect(
@@ -299,9 +301,9 @@ describe("getAILabelAssessmentValue Security", () => {
   it("should sanitize malicious input containing ANSI escape codes", () => {
     const maliciousResponse = "### Assessment: Malicious\u001b[31mCode";
     const result = getAILabelAssessmentValue(
-        "test.prompt.yml",
-        maliciousResponse,
-        aiAssessmentRegex,
+      "test.prompt.yml",
+      maliciousResponse,
+      aiAssessmentRegex,
     );
     // Expect backslash to be escaped, so it is visible string "\u001b" not control char
     // The control char \x1b becomes string "\u001b" via JSON.stringify

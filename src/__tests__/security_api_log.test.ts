@@ -35,8 +35,8 @@ describe("API Log Injection Security", () => {
     const calls = consoleSpy.mock.calls;
 
     // After fix, no argument should contain a newline
-    const containsNewline = calls.some(call =>
-      call.some(arg => typeof arg === 'string' && arg.includes('\n'))
+    const containsNewline = calls.some((call) =>
+      call.some((arg) => typeof arg === "string" && arg.includes("\n")),
     );
 
     expect(containsNewline).toBe(false);

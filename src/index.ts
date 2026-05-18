@@ -1,6 +1,7 @@
 import ModelClient from "@azure-rest/ai-inference";
 import { AzureKeyCredential } from "@azure/core-auth";
 import { context, getOctokit } from "@actions/github";
+import type { GitHub } from "@actions/github/lib/utils";
 import { getInput, setOutput, getBooleanInput } from "@actions/core";
 import { aiInference } from "./ai";
 import {
@@ -20,20 +21,33 @@ import {
 } from "./api";
 import type { Label } from "./types";
 
-export const main = async () => {
-  // Required inputs
+const getWorkflowInputs = () => {
   const token = getInput("token") || process.env.GITHUB_TOKEN;
   const owner = getInput("owner") || context?.repo?.owner;
   const repo = getInput("repo_name") || context?.repo?.repo;
 
-  const issueNumber = getInput("issue_number")
-    ? parseInt(getInput("issue_number"), 10)
+  const issueNumberInput = getInput("issue_number");
+  const issueNumber = issueNumberInput
+    ? parseInt(issueNumberInput, 10)
     : context?.payload?.issue?.number;
   const issueBody = getInput("issue_body");
 
   const promptsDirectory = getInput("prompts_directory");
   const aiReviewLabel = getInput("ai_review_label");
   const labelsToPromptsMapping = getInput("labels_to_prompts_mapping");
+
+  if (
+    !token ||
+    !owner ||
+    !repo ||
+    !issueNumber ||
+    !issueBody ||
+    !promptsDirectory ||
+    !aiReviewLabel ||
+    !labelsToPromptsMapping
+  ) {
+    throw new Error("Required inputs are not set");
+  }
 
   const assessmentRegexPattern = getInput("assessment_regex_pattern");
   const assessmentRegexFlags = getInput("assessment_regex_flags");
@@ -49,22 +63,21 @@ export const main = async () => {
     ? getRegexFromString(noCommentRegexPattern, noCommentRegexFlags)
     : null;
 
-  if (
-    !token ||
-    !owner ||
-    !repo ||
-    !issueNumber ||
-    !issueBody ||
-    !promptsDirectory ||
-    !aiReviewLabel ||
-    !labelsToPromptsMapping
-  ) {
-    throw new Error("Required inputs are not set");
-  }
+  return {
+    token,
+    owner,
+    repo,
+    issueNumber,
+    issueBody,
+    promptsDirectory,
+    aiReviewLabel,
+    labelsToPromptsMapping,
+    aiAssessmentRegex,
+    noCommentRegex,
+  };
+};
 
-  const octokit = getOctokit(token);
-
-  // AI configuration
+const getAiConfig = (token: string) => {
   const endpoint = getInput("endpoint");
   const modelName = getInput("model");
   const maxTokens = getInput("max_tokens")
@@ -73,11 +86,28 @@ export const main = async () => {
 
   const client = ModelClient(endpoint, new AzureKeyCredential(token));
 
-  // Optional suppressing inputs
   const suppressLabelsInput = getBooleanInput("suppress_labels");
   const suppressCommentsInput = getBooleanInput("suppress_comments");
 
-  // Get Labels from the issue
+  return {
+    endpoint,
+    modelName,
+    maxTokens,
+    client,
+    suppressLabelsInput,
+    suppressCommentsInput,
+  };
+};
+
+const resolveAiReviewStatus = async (params: {
+  octokit: InstanceType<typeof GitHub>;
+  owner: string;
+  repo: string;
+  issueNumber: number;
+  aiReviewLabel: string;
+}) => {
+  const { octokit, owner, repo, issueNumber, aiReviewLabel } = params;
+
   let issueLabels: Label[] = context?.payload?.issue?.labels ?? [];
   if (!issueLabels || issueLabels.length === 0) {
     const labels = await getIssueLabels({
@@ -90,22 +120,21 @@ export const main = async () => {
       issueLabels = labels.map((name) => ({ name })) as Label[];
     } else {
       console.log("No labels found on the issue.");
-      return;
+      return { shouldProceed: false };
     }
   }
 
-  // Check if the issue requires AI review based on the aiReviewLabel
   const requireAiReview = issueLabels.some(
     (label) => label?.name === aiReviewLabel,
   );
+
   if (!requireAiReview) {
     console.log(
       `No AI review required. Issue does not have label: ${sanitizeLog(aiReviewLabel)}`,
     );
-    return;
+    return { shouldProceed: false };
   }
 
-  // Remove the aiReviewLabel trigger label
   console.log(`Removing label: ${sanitizeLog(aiReviewLabel)}`);
   const labelRemoved = await removeIssueLabel({
     octokit,
@@ -118,10 +147,30 @@ export const main = async () => {
     console.warn(`Failed to remove label: ${sanitizeLog(aiReviewLabel)}`);
   }
 
+  return { shouldProceed: true, issueLabels };
+};
+
+export const main = async () => {
+  const inputs = getWorkflowInputs();
+  const octokit = getOctokit(inputs.token);
+  const aiConfig = getAiConfig(inputs.token);
+
+  const { shouldProceed, issueLabels } = await resolveAiReviewStatus({
+    octokit: octokit as any,
+    owner: inputs.owner,
+    repo: inputs.repo,
+    issueNumber: inputs.issueNumber as number,
+    aiReviewLabel: inputs.aiReviewLabel,
+  });
+
+  if (!shouldProceed || !issueLabels) {
+    return;
+  }
+
   // Get Prompt file based on issue labels and mapping
   const promptFiles = getPromptFilesFromLabels({
     issueLabels,
-    labelsToPromptsMapping,
+    labelsToPromptsMapping: inputs.labelsToPromptsMapping,
   });
 
   if (promptFiles.length === 0) {
@@ -134,28 +183,32 @@ export const main = async () => {
 
   const processPrompt = async (promptFile: string) => {
     console.log(`Using prompt file: ${sanitizeLog(promptFile)}`);
-    const promptOptions = await getPromptOptions(promptFile, promptsDirectory);
+    const promptOptions = await getPromptOptions(
+      promptFile,
+      inputs.promptsDirectory,
+    );
 
     const aiResponse = await aiInference({
-      client,
-      content: issueBody,
+      client: aiConfig.client,
+      content: inputs.issueBody,
       systemPromptMsg: promptOptions.systemMsg,
-      endpoint: endpoint,
-      maxTokens: maxTokens || promptOptions.maxTokens,
-      modelName: modelName || promptOptions.model,
+      endpoint: aiConfig.endpoint,
+      maxTokens: aiConfig.maxTokens || promptOptions.maxTokens,
+      modelName: aiConfig.modelName || promptOptions.model,
     });
+
     if (aiResponse) {
       if (
-        suppressCommentsInput ||
-        (noCommentRegex && noCommentRegex.test(aiResponse))
+        aiConfig.suppressCommentsInput ||
+        (inputs.noCommentRegex && inputs.noCommentRegex.test(aiResponse))
       ) {
         console.log("No comment creation as per AI response directive.");
       } else {
         const commentCreated = await createIssueComment({
-          octokit,
-          owner,
-          repo,
-          issueNumber,
+          octokit: octokit as any,
+          owner: inputs.owner,
+          repo: inputs.repo,
+          issueNumber: inputs.issueNumber as number,
           body: aiResponse,
         });
         if (!commentCreated) {
@@ -167,7 +220,7 @@ export const main = async () => {
       const assessmentLabel = getAILabelAssessmentValue(
         promptFile,
         aiResponse,
-        aiAssessmentRegex,
+        inputs.aiAssessmentRegex,
       );
 
       writeActionSummary({
@@ -202,7 +255,7 @@ export const main = async () => {
 
   setOutput("ai_assessments", JSON.stringify(outPutAssessments));
 
-  if (suppressLabelsInput) {
+  if (aiConfig.suppressLabelsInput) {
     console.log("Label suppression is enabled. No labels will be added.");
     return;
   }
@@ -210,10 +263,10 @@ export const main = async () => {
   if (labelsToAdd.length > 0) {
     console.log(`Adding labels: ${labelsToAdd.map(sanitizeLog).join(", ")}`);
     const labelsAdded = await addIssueLabels({
-      octokit,
-      owner,
-      repo,
-      issueNumber,
+      octokit: octokit as any,
+      owner: inputs.owner,
+      repo: inputs.repo,
+      issueNumber: inputs.issueNumber as number,
       labels: labelsToAdd,
     });
     if (!labelsAdded) {
@@ -225,5 +278,12 @@ export const main = async () => {
 };
 
 if (process.env.NODE_ENV !== "test") {
-  main();
+  main().catch((error) => {
+    // If main fails, we want to ensure the error is properly handled
+    // However, in our tests, main() is called directly.
+    // In production, we catch it here just in case.
+    if (error instanceof Error) {
+      import("@actions/core").then(core => core.setFailed(error.message));
+    }
+  });
 }

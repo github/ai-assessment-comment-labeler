@@ -50,7 +50,11 @@ export const aiInference: AiInferenceFn = async ({
       core.setFailed(error.message);
     } else if (typeof error === "string") {
       core.setFailed(error);
-    } else if (typeof error === "object" && error !== null && "message" in error) {
+    } else if (
+      typeof error === "object" &&
+      error !== null &&
+      "message" in error
+    ) {
       core.setFailed(String((error as { message: unknown }).message));
     } else {
       core.setFailed("An unexpected error occurred");

@@ -218,7 +218,7 @@ describe("main", () => {
     // Even though createComment is set to fail, it should never be called
     mockCreateComment.mockResolvedValue({ status: 500 });
 
-    await expect(main()).resolves.not.toThrow();
+    await main();
     expect(mockCreateComment).not.toHaveBeenCalled();
   });
 

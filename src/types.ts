@@ -74,7 +74,9 @@ interface AddLabelsParams {
   labels: string[];
 }
 
-export type RemoveIssueLabelFn = (params: RemoveLabelParams) => Promise<boolean>;
+export type RemoveIssueLabelFn = (
+  params: RemoveLabelParams,
+) => Promise<boolean>;
 
 interface RemoveLabelParams {
   octokit: InstanceType<typeof GitHub>;

@@ -42,8 +42,9 @@ export const writeActionSummary = ({
 export const getBaseFilename = (promptFile: string): string =>
   promptFile.replace(/\.prompt\.y.*ml$/, "");
 
-export const sanitizeLog = (input: any): string =>
-  JSON.stringify(String(input)).slice(1, -1);
+export const sanitizeLog = (
+  input: string | number | boolean | null | undefined,
+): string => JSON.stringify(String(input)).slice(1, -1);
 
 export const getAILabelAssessmentValue = (
   promptFile: string,

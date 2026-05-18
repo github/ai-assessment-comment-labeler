@@ -1,10 +1,6 @@
 import { describe, it, expect, mock, spyOn, afterEach } from "bun:test";
 import { GitHub } from "@actions/github/lib/utils";
-import {
-  getIssueLabels,
-  addIssueLabels,
-  removeIssueLabel,
-} from "../api";
+import { getIssueLabels, addIssueLabels, removeIssueLabel } from "../api";
 
 describe("api", () => {
   const owner = "owner";
@@ -29,7 +25,13 @@ describe("api", () => {
       } as unknown as InstanceType<typeof GitHub>;
 
       const labels = ["bug", "test"];
-      const result = await addIssueLabels({ octokit, owner, repo, issueNumber, labels });
+      const result = await addIssueLabels({
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        labels,
+      });
 
       expect(result).toBe(true);
       expect(addLabelsMock).toHaveBeenCalledWith({
@@ -52,7 +54,13 @@ describe("api", () => {
       } as any;
 
       const labels: string[] = [];
-      const result = await addIssueLabels({ octokit, owner, repo, issueNumber, labels });
+      const result = await addIssueLabels({
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        labels,
+      });
 
       expect(result).toBe(true);
       expect(addLabelsMock).toHaveBeenCalledWith({
@@ -159,7 +167,13 @@ describe("api", () => {
       } as unknown as InstanceType<typeof GitHub>;
 
       const label = "label-to-remove";
-      const result = await removeIssueLabel({ octokit, owner, repo, issueNumber, label });
+      const result = await removeIssueLabel({
+        octokit,
+        owner,
+        repo,
+        issueNumber,
+        label,
+      });
 
       expect(result).toBe(true);
       expect(removeLabelMock).toHaveBeenCalledWith({

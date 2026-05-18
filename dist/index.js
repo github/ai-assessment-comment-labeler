@@ -28320,49 +28320,7 @@ var import_github = __toESM(require_github(), 1);
 var import_core2 = __toESM(require_core(), 1);
 
 // src/ai.ts
-var core = __toESM(require_core(), 1);
-var aiInference = async ({
-  systemPromptMsg,
-  endpoint,
-  client,
-  modelName,
-  maxTokens,
-  content
-}) => {
-  try {
-    console.log("AI configuration:");
-    console.log(`Endpoint: ${endpoint}`);
-    console.log(`Model: ${modelName}`);
-    console.log(`Max Tokens: ${maxTokens}`);
-    const response = await client.path("/chat/completions").post({
-      body: {
-        messages: [
-          {
-            role: "system",
-            content: systemPromptMsg
-          },
-          { role: "user", content }
-        ],
-        max_tokens: maxTokens,
-        model: modelName
-      }
-    });
-    if (isUnexpected(response)) {
-      if (response.body.error) {
-        throw response.body.error;
-      }
-      throw new Error("An error occurred while fetching the response (" + response.status + "): " + response.body);
-    }
-    const modelResponse = response.body.choices[0].message.content;
-    return modelResponse ?? undefined;
-  } catch (error) {
-    if (error instanceof Error) {
-      core.setFailed(error.message);
-    } else {
-      core.setFailed("An unexpected error occurred");
-    }
-  }
-};
+var core2 = __toESM(require_core(), 1);
 
 // src/utils.ts
 var import_core = __toESM(require_core(), 1);
@@ -28959,7 +28917,7 @@ var json = failsafe.extend({
     float
   ]
 });
-var core2 = json;
+var core = json;
 var YAML_DATE_REGEXP = new RegExp("^([0-9][0-9][0-9][0-9])" + "-([0-9][0-9])" + "-([0-9][0-9])$");
 var YAML_TIMESTAMP_REGEXP = new RegExp("^([0-9][0-9][0-9][0-9])" + "-([0-9][0-9]?)" + "-([0-9][0-9]?)" + "(?:[Tt]|[ \\t]+)" + "([0-9][0-9]?)" + ":([0-9][0-9])" + ":([0-9][0-9])" + "(?:\\.([0-9]*))?" + "(?:[ \\t]*(Z|([-+])([0-9][0-9]?)" + "(?::([0-9][0-9]))?))?$");
 function resolveYamlTimestamp(data) {
@@ -29193,7 +29151,7 @@ var set = new type3("tag:yaml.org,2002:set", {
   resolve: resolveYamlSet,
   construct: constructYamlSet
 });
-var _default = core2.extend({
+var _default = core.extend({
   implicit: [
     timestamp,
     merge
@@ -31010,7 +30968,7 @@ var Type = type3;
 var Schema = schema;
 var FAILSAFE_SCHEMA = failsafe;
 var JSON_SCHEMA = json;
-var CORE_SCHEMA = core2;
+var CORE_SCHEMA = core;
 var DEFAULT_SCHEMA = _default;
 var load = loader.load;
 var loadAll = loader.loadAll;
@@ -31057,13 +31015,11 @@ var DEFAULT_MAX_TOKENS = 200;
 
 // src/utils.ts
 var getRegexFromString = (regexString, regexFlags) => {
-  let regex;
   try {
-    regex = new RegExp(regexString, regexFlags);
+    return new RegExp(regexString, regexFlags);
   } catch (error) {
     throw new Error(`Invalid regex pattern or flags provided: pattern="${regexString}", flags="${regexFlags}". Error: ${error}`);
   }
-  return regex;
 };
 var writeActionSummary = ({
   promptFile,
@@ -31073,7 +31029,7 @@ var writeActionSummary = ({
   import_core.summary.addHeading("Assessment Result").addHeading("Assessment").addCodeBlock(assessmentLabel).addHeading("Prompt File").addCodeBlock(promptFile).addHeading("Details").addCodeBlock(aiResponse).write();
 };
 var getBaseFilename = (promptFile) => promptFile.replace(/\.prompt\.y.*ml$/, "");
-var sanitizeLog = (input) => JSON.stringify(input).slice(1, -1);
+var sanitizeLog = (input) => JSON.stringify(String(input)).slice(1, -1);
 var getAILabelAssessmentValue = (promptFile, aiResponse, assessmentRegex) => {
   const fileName = getBaseFilename(promptFile);
   const lines = aiResponse.split(`
@@ -31085,7 +31041,8 @@ var getAILabelAssessmentValue = (promptFile, aiResponse, assessmentRegex) => {
       const matchedAssessment = match[1].trim().toLowerCase();
       console.log(`Assessment found: ${sanitizeLog(matchedAssessment)}`);
       if (matchedAssessment) {
-        assessment = `ai:${fileName}:${matchedAssessment}`;
+        assessment = `ai:${fileName}:${sanitizeLog(matchedAssessment)}`;
+        break;
       }
     }
   }
@@ -31095,19 +31052,27 @@ var getPromptFilesFromLabels = ({
   issueLabels,
   labelsToPromptsMapping
 }) => {
-  const promptFiles = [];
+  const promptFiles = new Set;
   const labelsToPromptsMappingArr = labelsToPromptsMapping.split("|");
   const issueLabelNames = new Set(issueLabels.map((l) => l?.name));
   for (const labelPromptMapping of labelsToPromptsMappingArr) {
-    const labelPromptArr = labelPromptMapping.split(",").map((s) => s.trim());
-    if (issueLabelNames.has(labelPromptArr[0])) {
-      promptFiles.push(labelPromptArr[1]);
+    const parts = labelPromptMapping.split(",");
+    if (parts.length >= 2) {
+      const labelName = parts[0].trim();
+      if (issueLabelNames.has(labelName)) {
+        promptFiles.add(parts[1].trim());
+      }
     }
   }
-  return promptFiles;
+  return Array.from(promptFiles);
 };
 var getPromptOptions = async (promptFile, promptsDirectory) => {
-  const fileContents = await fs.promises.readFile(path.resolve(process.cwd(), promptsDirectory, promptFile), "utf-8");
+  const resolvedPromptsDir = path.resolve(process.cwd(), promptsDirectory);
+  const resolvedPromptFile = path.resolve(resolvedPromptsDir, promptFile);
+  if (path.isAbsolute(promptFile) || !resolvedPromptFile.startsWith(resolvedPromptsDir) || path.relative(resolvedPromptsDir, resolvedPromptFile).startsWith("..")) {
+    throw new Error(`Invalid prompt file path: ${promptFile}`);
+  }
+  const fileContents = await fs.promises.readFile(resolvedPromptFile, "utf-8");
   if (!fileContents) {
     throw new Error(`System prompt file not found: ${promptFile}`);
   }
@@ -31127,14 +31092,72 @@ var getPromptOptions = async (promptFile, promptsDirectory) => {
     };
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error("Unable to parse system prompt file: " + error.message);
+      throw new Error(`Unable to parse system prompt file: ${error.message}`);
     } else {
       throw new Error("Unable to parse system prompt file");
     }
   }
 };
 
+// src/ai.ts
+var aiInference = async ({
+  systemPromptMsg,
+  endpoint,
+  client,
+  modelName,
+  maxTokens,
+  content
+}) => {
+  try {
+    console.log("AI configuration:");
+    console.log(`Endpoint: ${sanitizeLog(endpoint)}`);
+    console.log(`Model: ${sanitizeLog(modelName)}`);
+    console.log(`Max Tokens: ${sanitizeLog(maxTokens)}`);
+    const response = await client.path("/chat/completions").post({
+      body: {
+        messages: [
+          {
+            role: "system",
+            content: systemPromptMsg
+          },
+          { role: "user", content }
+        ],
+        max_tokens: maxTokens,
+        model: modelName
+      }
+    });
+    if (isUnexpected(response)) {
+      if (response.body.error) {
+        throw response.body.error;
+      }
+      throw new Error(`An error occurred while fetching the response (${response.status}): ${JSON.stringify(response.body)}`);
+    }
+    const modelResponse = response.body.choices[0].message.content;
+    return modelResponse ?? undefined;
+  } catch (error) {
+    if (error instanceof Error) {
+      core2.setFailed(error.message);
+    } else if (typeof error === "string") {
+      core2.setFailed(error);
+    } else if (typeof error === "object" && error !== null && "message" in error) {
+      core2.setFailed(String(error.message));
+    } else {
+      core2.setFailed("An unexpected error occurred");
+    }
+  }
+};
+
 // src/api.ts
+var handleGitHubApiCall = async (apiCall, errorMessage, defaultValue) => {
+  try {
+    return await apiCall();
+  } catch (error) {
+    const sanitizedErrorMessage = sanitizeLog(errorMessage);
+    const sanitizedError = error instanceof Error ? sanitizeLog(error.message) : sanitizeLog(error);
+    console.error(sanitizedErrorMessage, sanitizedError);
+    return defaultValue;
+  }
+};
 var createIssueComment = async ({
   octokit,
   owner,
@@ -31142,7 +31165,7 @@ var createIssueComment = async ({
   issueNumber: issue_number,
   body
 }) => {
-  try {
+  return handleGitHubApiCall(async () => {
     const response = await octokit.rest.issues.createComment({
       owner,
       repo,
@@ -31150,16 +31173,13 @@ var createIssueComment = async ({
       body
     });
     if (response.status === 201) {
-      console.log("Comment created successfully:", response.data.html_url);
+      console.log("Comment created successfully:", sanitizeLog(response.data.html_url));
       return true;
     } else {
-      console.error("Failed to create comment:", response.status);
+      console.error("Failed to create comment:", sanitizeLog(response.status));
       return false;
     }
-  } catch (error) {
-    console.error("Error creating issue comment:", error);
-    return false;
-  }
+  }, "Error creating issue comment:", false);
 };
 var getIssueLabels = async ({
   octokit,
@@ -31167,16 +31187,14 @@ var getIssueLabels = async ({
   repo,
   issueNumber: issue_number
 }) => {
-  try {
+  return handleGitHubApiCall(async () => {
     const response = await octokit.rest.issues.listLabelsOnIssue({
       owner,
       repo,
       issue_number
     });
     return response.data.map((label) => label.name);
-  } catch (error) {
-    console.error("Error listing labels on issue:", error);
-  }
+  }, "Error listing labels on issue:", undefined);
 };
 var addIssueLabels = async ({
   octokit,
@@ -31185,11 +31203,15 @@ var addIssueLabels = async ({
   issueNumber: issue_number,
   labels
 }) => {
-  try {
-    await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels });
-  } catch (error) {
-    console.error("Error adding labels to issue:", error);
-  }
+  return handleGitHubApiCall(async () => {
+    await octokit.rest.issues.addLabels({
+      owner,
+      repo,
+      issue_number,
+      labels
+    });
+    return true;
+  }, "Error adding labels to issue:", false);
 };
 var removeIssueLabel = async ({
   octokit,
@@ -31198,45 +31220,69 @@ var removeIssueLabel = async ({
   issueNumber: issue_number,
   label
 }) => {
-  try {
+  return handleGitHubApiCall(async () => {
     await octokit.rest.issues.removeLabel({
       owner,
       repo,
       issue_number,
       name: label
     });
-    console.log(`Label "${label}" removed from issue #${issue_number}`);
-  } catch (error) {
-    console.error("Error removing labels from issue:", error);
-  }
+    console.log(sanitizeLog(`Label "${label}" removed from issue #${issue_number}`));
+    return true;
+  }, "Error removing labels from issue:", false);
 };
 
 // src/index.ts
-var main = async () => {
+var getWorkflowInputs = () => {
   const token = import_core2.getInput("token") || process.env.GITHUB_TOKEN;
   const owner = import_core2.getInput("owner") || import_github.context?.repo?.owner;
   const repo = import_core2.getInput("repo_name") || import_github.context?.repo?.repo;
-  const issueNumber = import_core2.getInput("issue_number") ? parseInt(import_core2.getInput("issue_number"), 10) : import_github.context?.payload?.issue?.number;
+  const issueNumberInput = import_core2.getInput("issue_number");
+  const issueNumber = issueNumberInput ? parseInt(issueNumberInput, 10) : import_github.context?.payload?.issue?.number;
   const issueBody = import_core2.getInput("issue_body");
   const promptsDirectory = import_core2.getInput("prompts_directory");
   const aiReviewLabel = import_core2.getInput("ai_review_label");
   const labelsToPromptsMapping = import_core2.getInput("labels_to_prompts_mapping");
+  if (!token || !owner || !repo || !issueNumber || !issueBody || !promptsDirectory || !aiReviewLabel || !labelsToPromptsMapping) {
+    throw new Error("Required inputs are not set");
+  }
   const assessmentRegexPattern = import_core2.getInput("assessment_regex_pattern");
   const assessmentRegexFlags = import_core2.getInput("assessment_regex_flags");
   const noCommentRegexPattern = import_core2.getInput("no_comment_regex_pattern");
   const noCommentRegexFlags = import_core2.getInput("no_comment_regex_flags");
   const aiAssessmentRegex = getRegexFromString(assessmentRegexPattern, assessmentRegexFlags);
   const noCommentRegex = noCommentRegexPattern ? getRegexFromString(noCommentRegexPattern, noCommentRegexFlags) : null;
-  if (!token || !owner || !repo || !issueNumber || !issueBody || !promptsDirectory || !aiReviewLabel || !labelsToPromptsMapping) {
-    throw new Error("Required inputs are not set");
-  }
-  const octokit = import_github.getOctokit(token);
+  return {
+    token,
+    owner,
+    repo,
+    issueNumber,
+    issueBody,
+    promptsDirectory,
+    aiReviewLabel,
+    labelsToPromptsMapping,
+    aiAssessmentRegex,
+    noCommentRegex
+  };
+};
+var getAiConfig = (token) => {
   const endpoint = import_core2.getInput("endpoint");
   const modelName = import_core2.getInput("model");
   const maxTokens = import_core2.getInput("max_tokens") ? parseInt(import_core2.getInput("max_tokens"), 10) : undefined;
   const client = esm_default(endpoint, new AzureKeyCredential(token));
   const suppressLabelsInput = import_core2.getBooleanInput("suppress_labels");
   const suppressCommentsInput = import_core2.getBooleanInput("suppress_comments");
+  return {
+    endpoint,
+    modelName,
+    maxTokens,
+    client,
+    suppressLabelsInput,
+    suppressCommentsInput
+  };
+};
+var resolveAiReviewStatus = async (params) => {
+  const { octokit, owner, repo, issueNumber, aiReviewLabel } = params;
   let issueLabels = import_github.context?.payload?.issue?.labels ?? [];
   if (!issueLabels || issueLabels.length === 0) {
     const labels = await getIssueLabels({
@@ -31249,57 +31295,76 @@ var main = async () => {
       issueLabels = labels.map((name) => ({ name }));
     } else {
       console.log("No labels found on the issue.");
-      return;
+      return { shouldProceed: false };
     }
   }
   const requireAiReview = issueLabels.some((label) => label?.name === aiReviewLabel);
   if (!requireAiReview) {
-    console.log(`No AI review required. Issue does not have label: ${aiReviewLabel}`);
-    return;
+    console.log(`No AI review required. Issue does not have label: ${sanitizeLog(aiReviewLabel)}`);
+    return { shouldProceed: false };
   }
-  console.log(`Removing label: ${aiReviewLabel}`);
-  await removeIssueLabel({
+  console.log(`Removing label: ${sanitizeLog(aiReviewLabel)}`);
+  const labelRemoved = await removeIssueLabel({
     octokit,
     owner,
     repo,
     issueNumber,
     label: aiReviewLabel
   });
+  if (!labelRemoved) {
+    console.warn(`Failed to remove label: ${sanitizeLog(aiReviewLabel)}`);
+  }
+  return { shouldProceed: true, issueLabels };
+};
+var main = async () => {
+  const inputs = getWorkflowInputs();
+  const octokit = import_github.getOctokit(inputs.token);
+  const aiConfig = getAiConfig(inputs.token);
+  const { shouldProceed, issueLabels } = await resolveAiReviewStatus({
+    octokit,
+    owner: inputs.owner,
+    repo: inputs.repo,
+    issueNumber: inputs.issueNumber,
+    aiReviewLabel: inputs.aiReviewLabel
+  });
+  if (!shouldProceed || !issueLabels) {
+    return;
+  }
   const promptFiles = getPromptFilesFromLabels({
     issueLabels,
-    labelsToPromptsMapping
+    labelsToPromptsMapping: inputs.labelsToPromptsMapping
   });
   if (promptFiles.length === 0) {
     console.log("No matching prompt files found. No issue labels matched the configured label-to-prompt mapping. " + "To run an AI assessment, add a label that corresponds to a prompt file configured in your workflow.");
     return;
   }
   const processPrompt = async (promptFile) => {
-    console.log(`Using prompt file: ${promptFile}`);
-    const promptOptions = await getPromptOptions(promptFile, promptsDirectory);
+    console.log(`Using prompt file: ${sanitizeLog(promptFile)}`);
+    const promptOptions = await getPromptOptions(promptFile, inputs.promptsDirectory);
     const aiResponse = await aiInference({
-      client,
-      content: issueBody,
+      client: aiConfig.client,
+      content: inputs.issueBody,
       systemPromptMsg: promptOptions.systemMsg,
-      endpoint,
-      maxTokens: maxTokens || promptOptions.maxTokens,
-      modelName: modelName || promptOptions.model
+      endpoint: aiConfig.endpoint,
+      maxTokens: aiConfig.maxTokens || promptOptions.maxTokens,
+      modelName: aiConfig.modelName || promptOptions.model
     });
     if (aiResponse) {
-      if (suppressCommentsInput || noCommentRegex && noCommentRegex.test(aiResponse)) {
+      if (aiConfig.suppressCommentsInput || inputs.noCommentRegex && inputs.noCommentRegex.test(aiResponse)) {
         console.log("No comment creation as per AI response directive.");
       } else {
         const commentCreated = await createIssueComment({
           octokit,
-          owner,
-          repo,
-          issueNumber,
+          owner: inputs.owner,
+          repo: inputs.repo,
+          issueNumber: inputs.issueNumber,
           body: aiResponse
         });
         if (!commentCreated) {
           throw new Error("Failed to create comment");
         }
       }
-      const assessmentLabel = getAILabelAssessmentValue(promptFile, aiResponse, aiAssessmentRegex);
+      const assessmentLabel = getAILabelAssessmentValue(promptFile, aiResponse, inputs.aiAssessmentRegex);
       writeActionSummary({
         promptFile,
         aiResponse,
@@ -31326,25 +31391,32 @@ var main = async () => {
   const labelsToAdd = results.map((r) => r.label);
   const outPutAssessments = results.map((r) => r.assessment).filter((a) => a !== null);
   import_core2.setOutput("ai_assessments", JSON.stringify(outPutAssessments));
-  if (suppressLabelsInput) {
+  if (aiConfig.suppressLabelsInput) {
     console.log("Label suppression is enabled. No labels will be added.");
     return;
   }
   if (labelsToAdd.length > 0) {
-    console.log(`Adding labels: ${labelsToAdd.join(", ")}`);
-    await addIssueLabels({
+    console.log(`Adding labels: ${labelsToAdd.map(sanitizeLog).join(", ")}`);
+    const labelsAdded = await addIssueLabels({
       octokit,
-      owner,
-      repo,
-      issueNumber,
+      owner: inputs.owner,
+      repo: inputs.repo,
+      issueNumber: inputs.issueNumber,
       labels: labelsToAdd
     });
+    if (!labelsAdded) {
+      throw new Error("Failed to add labels to the issue");
+    }
   } else {
     console.log("No labels to add found.");
   }
 };
 if (true) {
-  main();
+  main().catch((error) => {
+    if (error instanceof Error) {
+      Promise.resolve().then(() => __toESM(require_core(), 1)).then((core3) => core3.setFailed(error.message));
+    }
+  });
 }
 export {
   main

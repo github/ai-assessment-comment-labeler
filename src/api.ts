@@ -16,9 +16,7 @@ const handleGitHubApiCall = async <T>(
   } catch (error) {
     const sanitizedErrorMessage = sanitizeLog(errorMessage);
     const sanitizedError =
-      error instanceof Error
-        ? sanitizeLog(error.message)
-        : sanitizeLog(error);
+      error instanceof Error ? sanitizeLog(error.message) : sanitizeLog(error);
 
     console.error(sanitizedErrorMessage, sanitizedError);
     return defaultValue;
@@ -88,7 +86,12 @@ export const addIssueLabels: AddIssueLabelsFn = async ({
 }) => {
   return handleGitHubApiCall(
     async () => {
-      await octokit.rest.issues.addLabels({ owner, repo, issue_number, labels });
+      await octokit.rest.issues.addLabels({
+        owner,
+        repo,
+        issue_number,
+        labels,
+      });
       return true;
     },
     "Error adding labels to issue:",
